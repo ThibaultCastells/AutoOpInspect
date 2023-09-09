@@ -29,7 +29,7 @@ Here's what AutoOpInspect can offer:
 You can install AutoOpInspect using pip. Use the following command to install AutoOpInspect:
 
 ``` bash
-pip install autoopinspect
+pip install auto_op_inspect
 ```
 
 ## Usage
