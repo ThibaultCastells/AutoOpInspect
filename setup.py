@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='AutoOpInspect',
+    name='auto_op_inspect',
     version='0.1.0',
     author='Thibault Castells',
     description='AutoOpInspect is a Python tool designed to facilitate the inspection and profiling of operators within PyTorch models, aiming to assist machine learning developers, researchers, and enthusiasts in debugging, optimizing, and understanding PyTorch models more efficiently and effectively.',
