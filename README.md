@@ -64,7 +64,7 @@ ops_info_provider = OpsInfoProvider(model, input_data, target=target_module)
 Retrieve dummy input and output data for any operator:
 
 ``` python
-operator = model.features.6
+operator = model.features[6]
 dummy_input, dummy_output = ops_info_provider.get_dummy(operator, mode='both')
 # available modes are input, output and both
 ```
