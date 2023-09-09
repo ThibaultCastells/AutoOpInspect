@@ -36,7 +36,7 @@ pip install auto_op_inspect
 
 Below are some examples demonstrating how to use the AutoOpInspect package:
 
-Basic Usage
+### Basic Usage
 
 Create an OpsInfoProvider instance using a PyTorch model and input data:
 
@@ -50,7 +50,7 @@ input_data = [torch.randn(1, 3, 224, 224)] # make a list of inputs (supports mul
 ops_info_provider = OpsInfoProvider(model, input_data)
 ```
 
-Specifying a Target Module
+### Specifying a Target Module
 
 You can specify a target operator to inspect, if you do not need to inspect the whole model:
 
@@ -59,7 +59,7 @@ target_module = model.features
 ops_info_provider = OpsInfoProvider(model, input_data, target=target_module)
 ```
 
-Getting Dummy Data
+### Getting Dummy Data
 
 Retrieve dummy input and output data for a specified mode:
 
@@ -68,7 +68,7 @@ Retrieve dummy input and output data for a specified mode:
 dummy_input, dummy_output = ops_info_provider.get_dummy(target_module, mode='both')
 ```
 
-Visualize the model
+### Visualize the model
 
 ``` python
 print(ops_info_provider)
