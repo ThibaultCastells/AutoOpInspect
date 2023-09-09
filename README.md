@@ -1,11 +1,12 @@
 <div align="center">
+
 # AutoOpInspect
 </div>
 
 AutoOpInspect is a Python package designed to streamline the inspection and profiling of operators within PyTorch models. It is a helpful tool for developers, researchers, and enthusiasts working in the machine learning field. Whether you are debugging, trying to improve the performance of your PyTorch models, or trying to collect operators info for a project, AutoOpInspect can help you!
 
 <div align="center">
-  <img src="./assets/AutoOpInspect_logo.png" width="300"/>
+  <img src="./assets/AutoOpInspect_logo.png" width="500"/>
 </div>
 
 
