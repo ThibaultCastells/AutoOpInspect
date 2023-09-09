@@ -28,9 +28,9 @@ Here's what AutoOpInspect can offer:
 
 You can install AutoOpInspect using pip. Use the following command to install AutoOpInspect:
 
-‘‘‘ bash
+``` bash
 pip install autoopinspect
-‘‘‘
+```
 
 ## Usage
 
