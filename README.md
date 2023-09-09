@@ -68,6 +68,53 @@ Retrieve dummy input and output data for a specified mode:
 dummy_input, dummy_output = ops_info_provider.get_dummy(target_module, mode='both')
 ```
 
+Visualize the model
+
+``` python
+print(ops_info_provider)
+```
+
+result:
+
+```
+Layer (type)                  Input Shape               Output Shape              Param #              Module Details
+=================================================================================================================================
+target_module (VGG)           [[1, 3, 224, 224]]        [[1000]]                  132863336
+features (Sequential)         [[1, 3, 224, 224]]        [[512, 7, 7]]             9220480
+├─ features.0 (Conv2d)        [[1, 3, 224, 224]]        [[64, 224, 224]]          1792
+├─ features.1 (ReLU)          [[1, 64, 224, 224]]       [[64, 224, 224]]          0
+├─ features.2 (MaxPool2d)     [[1, 64, 224, 224]]       [[64, 112, 112]]          0
+├─ features.3 (Conv2d)        [[1, 64, 112, 112]]       [[128, 112, 112]]         73856
+├─ features.4 (ReLU)          [[1, 128, 112, 112]]      [[128, 112, 112]]         0
+├─ features.5 (MaxPool2d)     [[1, 128, 112, 112]]      [[128, 56, 56]]           0
+├─ features.6 (Conv2d)        [[1, 128, 56, 56]]        [[256, 56, 56]]           295168
+├─ features.7 (ReLU)          [[1, 256, 56, 56]]        [[256, 56, 56]]           0
+├─ features.8 (Conv2d)        [[1, 256, 56, 56]]        [[256, 56, 56]]           590080
+├─ features.9 (ReLU)          [[1, 256, 56, 56]]        [[256, 56, 56]]           0
+├─ features.10 (MaxPool2d)    [[1, 256, 56, 56]]        [[256, 28, 28]]           0
+├─ features.11 (Conv2d)       [[1, 256, 28, 28]]        [[512, 28, 28]]           1180160
+├─ features.12 (ReLU)         [[1, 512, 28, 28]]        [[512, 28, 28]]           0
+├─ features.13 (Conv2d)       [[1, 512, 28, 28]]        [[512, 28, 28]]           2359808
+├─ features.14 (ReLU)         [[1, 512, 28, 28]]        [[512, 28, 28]]           0
+├─ features.15 (MaxPool2d)    [[1, 512, 28, 28]]        [[512, 14, 14]]           0
+├─ features.16 (Conv2d)       [[1, 512, 14, 14]]        [[512, 14, 14]]           2359808
+├─ features.17 (ReLU)         [[1, 512, 14, 14]]        [[512, 14, 14]]           0
+├─ features.18 (Conv2d)       [[1, 512, 14, 14]]        [[512, 14, 14]]           2359808
+├─ features.19 (ReLU)         [[1, 512, 14, 14]]        [[512, 14, 14]]           0
+├─ features.20 (MaxPool2d)    [[1, 512, 14, 14]]        [[512, 7, 7]]             0
+avgpool (AdaptiveAvgPool2d)   [[1, 512, 7, 7]]          [[512, 7, 7]]             0
+classifier (Sequential)       [[1, 25088]]              [[1000]]                  123642856
+├─ classifier.0 (Linear)      [[1, 25088]]              [[4096]]                  102764544
+├─ classifier.1 (ReLU)        [[1, 4096]]               [[4096]]                  0
+├─ classifier.2 (Dropout)     [[1, 4096]]               [[4096]]                  0
+├─ classifier.3 (Linear)      [[1, 4096]]               [[4096]]                  16781312
+├─ classifier.4 (ReLU)        [[1, 4096]]               [[4096]]                  0
+├─ classifier.5 (Dropout)     [[1, 4096]]               [[4096]]                  0
+├─ classifier.6 (Linear)      [[1, 4096]]               [[1000]]                  4097000
+```
+
+Remark: for now, Module Details is empty. More info will be added soon.
+
 ## Contributing
 
 We welcome contributions to the AutoOpInspect project. Whether it's reporting issues, improving documentation, or contributing code, your input is valuable.
