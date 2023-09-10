@@ -2,7 +2,7 @@ from typing import List, Optional, Union, Tuple
 from collections import OrderedDict
 import torch
 import torch.nn as nn
-
+import time
 
 class OpInfo:
     """
@@ -38,7 +38,20 @@ class OpInfo:
         self.output_val = []
         self.input_dim: Optional[List[Tuple]] = []
         self.output_dim: Optional[List[Tuple]] = []
+        self.speed = 'N/A' # Using 'N/A' if speed has not been calculated yet
 
+    def __getitem__(self, key: str) -> dict:
+        attributes = {
+            'module': self.module,
+            'name': self.name,
+            'params': self.params,
+            'input_dim': self.input_dim,
+            'input_val': self.input_val,
+            'output_dim': self.output_dim,
+            'output_val': self.output_val,
+            'speed': self.speed
+        }
+        return attributes[key]
 
 class OpsInfoProvider:
     """
@@ -127,9 +140,8 @@ class OpsInfoProvider:
             self.operators_info[name].input_dim = input_dims
             self.operators_info[name].input_val = input_vals  
 
-            output_dims = collect_tensor_info([z[0]])
-            output_vals = collect_val_info([z[0]])
-
+            output_dims = collect_tensor_info([z])
+            output_vals = collect_val_info([z])
             self.operators_info[name].output_dim = output_dims
             self.operators_info[name].output_val = output_vals
         return hook
@@ -147,51 +159,114 @@ class OpsInfoProvider:
         else:
             raise TypeError(f"Index must be an integer, an str or a Module (got {type(index).__name__})")
         return operator_info
+    
+    def benchmark_speed(self, operator: Optional[Union[int, str, nn.Module]]=None, device=None, iterations: int=10):
+        if device is None:
+            device = next(self.target_module.parameters()).device
+        else:
+            device = torch.device(device)
+
+        operators_to_benchmark = [operator] if operator is not None else self.operators_info.keys()
+
+        for op in operators_to_benchmark:
+            operator_info = self.get_opinfo(op)
+
+            # Save the original mode and device, to put it back after the benchmark
+            original_mode = operator_info['module'].training
+            try:
+                original_device = next(operator_info['module'].parameters()).device
+            except StopIteration:
+                # If the module has no parameters, use the default device
+                original_device = next(self.target_module.parameters()).device
+            
+            module = operator_info['module']
+            module.eval()
+            module.to(device)
+            
+            input_data = self.get_dummy(op, mode='input', device=device)
+
+            # Disable gradient computation
+            with torch.no_grad():
+                # warmup
+                module(*input_data)
+                
+                total_time = 0.0
+
+                if device.type == 'cuda':
+                    for _ in range(iterations):
+                        torch.cuda.synchronize()
+                        start_time = time.perf_counter()
+                        module(*input_data)
+                        torch.cuda.synchronize()
+                        end_time = time.perf_counter()
+                        total_time += end_time - start_time
+                else:
+                    for _ in range(iterations):
+                        start_time = time.perf_counter()
+                        module(*input_data)
+                        end_time = time.perf_counter()
+                        total_time += end_time - start_time
+
+                total_time = total_time / iterations
+
+                operator_info.speed = total_time * 1000 # convert to ms
+
+                # Restore the original device and mode
+                module.to(original_device)
+                module.train(original_mode)
 
     def __getitem__(self, index: Union[int, str, nn.Module]) -> dict:
-        operator_info = self.get_opinfo(index)
-        return {
-            'module': operator_info.module,
-            'name': operator_info.name,
-            'params': operator_info.params,
-            'input_dim': operator_info.input_dim,
-            'input_val': operator_info.input_val,
-            'output_dim': operator_info.output_dim,
-            'output_val': operator_info.output_val
-        }
+        return self.get_opinfo(index)
 
-    def get_dummy(self, module, mode='input'):
+    def get_dummy(self, operator, mode='input', device=None, dtype=None):
         """
         Generates a dummy input or output for a specified module.
         Args:
-            module: The module to generate dummy data for, or its name.
+            operator: The operator to generate dummy data for, or its name.
             mode (str): The mode specifying the type of dummy data to generate. 
                         It can be 'input', 'output', or 'both'. Default is 'input'.
 
         Returns:
             dummy_data: The generated dummy data.
         """
-        module_info = self[module]
-        
-        def generate_dummy(data_vals, data_dims):
-            return [val if dim is None else torch.randn(tuple(dim)) for val, dim in zip(data_vals, data_dims)]
+        operator_info = self[operator]
+        if device is None:
+            device = next(self.target_module.parameters()).device
+        if dtype is None:
+            dtype = next(self.target_module.parameters()).dtype
 
+        def generate_dummy(data_vals, data_dims, device, dtype):
+
+            def build_input_data(input_val, input_dim, device, dtype):
+                if isinstance(input_val, tuple):
+                    return tuple(build_input_data(v, d, device, dtype) for v, d in zip(input_val, input_dim))
+                elif isinstance(input_val, list):
+                    return [build_input_data(v, d, device, dtype) for v, d in zip(input_val, input_dim)]
+                elif input_val == 'Tensor' and input_dim is not None:
+                    return torch.randn(tuple(input_dim)).to(device).to(dtype)
+                else:
+                    return input_val  # for non-Tensor values
+
+            out = build_input_data(data_vals, data_dims, device, dtype)
+
+            return out
+        
         if mode == 'input':
-            input_vals = module_info['input_val']
-            input_dims = module_info['input_dim']
-            return generate_dummy(input_vals, input_dims)
+            input_vals = operator_info['input_val']
+            input_dims = operator_info['input_dim']
+            return generate_dummy(input_vals, input_dims, device, dtype)
         
         elif mode == 'output':
-            output_vals = module_info['output_val']
-            output_dims = module_info['output_dim']
-            return generate_dummy(output_vals, output_dims)
+            output_vals = operator_info['output_val']
+            output_dims = operator_info['output_dim']
+            return generate_dummy(output_vals, output_dims, device, dtype)
         
         elif mode == 'both':
-            input_vals = module_info['input_val']
-            input_dims = module_info['input_dim']
-            output_vals = module_info['output_val']
-            output_dims = module_info['output_dim']
-            return generate_dummy(input_vals, input_dims), generate_dummy(output_vals, output_dims)
+            input_vals = operator_info['input_val']
+            input_dims = operator_info['input_dim']
+            output_vals = operator_info['output_val']
+            output_dims = operator_info['output_dim']
+            return generate_dummy(input_vals, input_dims, device, dtype), generate_dummy(output_vals, output_dims, device, dtype)
         else:
             raise ValueError("Invalid mode. It should be one of 'input', 'output', or 'both'.")
 
@@ -201,16 +276,16 @@ class OpsInfoProvider:
         max_layer_type_length = max(
             len(name) + 4 * name.count('.') + len(operator_info.module.__class__.__name__) + 3 * name.count('.')
             for name, operator_info in self.operators_info.items()
-        ) + 2
+        ) + 4
 
         # Creating a dynamic header using the maximum length found
-        header = f"{ 'Layer (type)':<{max_layer_type_length}} {'Input Shape':<25} {'Output Shape':<25} {'Param #':<20} {'Module Details':<25}"
+        header = f"{ 'Layer (type)':<{max_layer_type_length}} {'Input Shape':<25} {'Output Shape':<25} {'Param #':<13} {'Inference (ms)':<15} {'Other':<25}"
         lines = [header]
-        lines.append("=" * (max_layer_type_length + 100))  # Adjust total length here
+        lines.append("=" * (max_layer_type_length + 120))  # Adjust total length here
 
         for name, operator_info in self.operators_info.items():
             # Get the hierarchical level based on the number of dots in the name
-            level = name.count('.')
+            level = 0 if name == 'target_module' else name.count('.') + 1
             indent = '│ ' * (level - 1)  # Hierarchical visualization using '│ '
 
             if level > 0:
@@ -220,13 +295,21 @@ class OpsInfoProvider:
             module_class_name = operator_info.module.__class__.__name__
 
             # Creating a row for the current module with necessary indentations
-            row = f"{indent + name + ' (' + module_class_name + ')':<{max_layer_type_length}} {str(operator_info.input_dim):<25} {str(operator_info.output_dim):<25} {str(operator_info.params):<20} { '':<25}"
+            speed = operator_info.speed  # Use get method to avoid KeyError for not benchmarked operators
+            speed = f"{speed:.5f}"
+
+            params = operator_info.params
+            formatted_params = f"{params:,}"
+            if params >= 1_000_000_000:
+                formatted_params = f"{params / 1_000_000_000:.2f}B"
+            elif params >= 1_000_000:
+                formatted_params = f"{params / 1_000_000:.2f}M"
+            params = formatted_params
+
+            row = f"{indent + name + ' (' + module_class_name + ')':<{max_layer_type_length}} {str(operator_info.input_dim):<25} {str(operator_info.output_dim):<25} {params:<13} {speed:<15} { '':<25}"
             lines.append(row)
         
         return "\n".join(lines)
-
-
-
 
     def __eq__(self, other) -> bool:
         """
@@ -254,9 +337,12 @@ class OpsInfoProvider:
             if self_name != other_name or self_info.name != other_info.name:
                 print(f"different name: {self_name} and {other_name}")
                 return False
-            # Check if the stored params in OpInfo instances are the same
+            # Check if the stored params and speed in OpInfo instances are the same
             if self_info.params != other_info.params:
-                print(f"different number of parameters: {self_info.params} and {other_info.params}")
+                print(f"different number of parameters for {self_name}: {self_info.params} and {other_info.params}")
+                return False
+            if self_info.speed != other_info.speed:
+                print(f"different inference speed for {self_name}: {self_info.speed} and {other_info.speed}")
                 return False
             # Check if the stored dims in OpInfo instances are the same
             if (not all(map(lambda x, y: x == y, self_info.input_dim, other_info.input_dim)) or 

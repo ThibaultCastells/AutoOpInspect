@@ -17,9 +17,9 @@ class TestOpsInfoProvider(unittest.TestCase):
             stable_diffusion_model = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float32)
             self.models_to_test.append({
                 "model": stable_diffusion_model,
-                "input": ['a cat', None, None, 1],
+                "input": ['a cat', None, None, 1, 7.5, None, 1, 0.0, None, None, None, None, 'pil', False, None, 1, None, 0.0],
                 "target_input": [torch.randn(2, 4, 64, 64)],
-                "target_output": [torch.randn(2, 4, 64, 64)],
+                "target_output": [(torch.randn(2, 4, 64, 64),)],
                 "target": stable_diffusion_model.unet
             })
         except ImportError as e:
@@ -30,7 +30,7 @@ class TestOpsInfoProvider(unittest.TestCase):
             "model": vgg_model,
             "input": [torch.randn(1, 3, 224, 224)],
             "target_input": [torch.randn(1, 3, 224, 224)],
-            "target_output": [torch.randn(1000)],
+            "target_output": [torch.randn(1, 1000)],
             "target": vgg_model
         })
         
@@ -56,7 +56,10 @@ class TestOpsInfoProvider(unittest.TestCase):
             dummy_input, dummy_output = ops_info_provider.get_dummy(model_info["target"], mode='both')
             
             self.assertEqual(dummy_input[0].shape, model_info["target_input"][0].shape)
-            self.assertEqual(dummy_output[0].shape, model_info["target_output"][0].shape)
+            if isinstance(model_info["target_output"][0], tuple):
+                self.assertEqual(dummy_output[0][0].shape, model_info["target_output"][0][0].shape)
+            else:
+                self.assertEqual(dummy_output[0].shape, model_info["target_output"][0].shape)
         
         print("test_get_dummy completed")
 
