@@ -3,6 +3,7 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 import time
+from tqdm import tqdm
 
 class OpInfo:
     """
@@ -38,7 +39,8 @@ class OpInfo:
         self.output_val = []
         self.input_dim: Optional[List[Tuple]] = []
         self.output_dim: Optional[List[Tuple]] = []
-        self.speed = 'N/A' # Using 'N/A' if speed has not been calculated yet
+        self.speed = None 
+        self.error = None # allows to collect error when forwarding
 
     def __getitem__(self, key: str) -> dict:
         attributes = {
@@ -52,7 +54,7 @@ class OpInfo:
             'speed': self.speed
         }
         return attributes[key]
-
+    
 class OpsInfoProvider:
     """
     A wrapper for a list of operators.
@@ -168,7 +170,7 @@ class OpsInfoProvider:
 
         operators_to_benchmark = [operator] if operator is not None else self.operators_info.keys()
 
-        for op in operators_to_benchmark:
+        for op in tqdm(operators_to_benchmark):
             operator_info = self.get_opinfo(op)
 
             # Save the original mode and device, to put it back after the benchmark
@@ -180,6 +182,9 @@ class OpsInfoProvider:
                 original_device = next(self.target_module.parameters()).device
             
             module = operator_info['module']
+            if not hasattr(module, "forward"):
+                continue
+            
             module.eval()
             module.to(device)
             
@@ -188,8 +193,16 @@ class OpsInfoProvider:
             # Disable gradient computation
             with torch.no_grad():
                 # warmup
-                module(*input_data)
-                
+                try:
+                    module(*input_data)
+                except NotImplementedError:
+                    # skip modules for which the forward is not implemented, such as ModuleList
+                    operator_info.error = f"The forward method for {module.__class__.__name__} is not implemented and will be skipped."
+                    continue
+                except Exception as e:
+                    operator_info.error = e
+                    continue
+
                 total_time = 0.0
 
                 if device.type == 'cuda':
@@ -274,12 +287,12 @@ class OpsInfoProvider:
     def __str__(self):
         # Initially, find the maximum length for the Layer (type) column
         max_layer_type_length = max(
-            len(name) + 4 * name.count('.') + len(operator_info.module.__class__.__name__) + 3 * name.count('.')
+            name.count('.')*2 + len(name) + len(operator_info.module.__class__.__name__)
             for name, operator_info in self.operators_info.items()
-        ) + 4
+        ) + 6
 
         # Creating a dynamic header using the maximum length found
-        header = f"{ 'Layer (type)':<{max_layer_type_length}} {'Input Shape':<25} {'Output Shape':<25} {'Param #':<13} {'Inference (ms)':<15} {'Other':<25}"
+        header = f"{ 'Layer (type)':<{max_layer_type_length}} {'Input Shape':<25} {'Output Shape':<25} {'Param #':<13} {'Inference (ms)':<15} {'Other':<15}"
         lines = [header]
         lines.append("=" * (max_layer_type_length + 120))  # Adjust total length here
 
@@ -296,7 +309,7 @@ class OpsInfoProvider:
 
             # Creating a row for the current module with necessary indentations
             speed = operator_info.speed  # Use get method to avoid KeyError for not benchmarked operators
-            speed = f"{speed:.5f}"
+            speed = f"{speed:.5f}" if isinstance(speed, float) else 'N/A'
 
             params = operator_info.params
             formatted_params = f"{params:,}"
@@ -306,7 +319,7 @@ class OpsInfoProvider:
                 formatted_params = f"{params / 1_000_000:.2f}M"
             params = formatted_params
 
-            row = f"{indent + name + ' (' + module_class_name + ')':<{max_layer_type_length}} {str(operator_info.input_dim):<25} {str(operator_info.output_dim):<25} {params:<13} {speed:<15} { '':<25}"
+            row = f"{indent + name + ' (' + module_class_name + ')':<{max_layer_type_length}} {str(operator_info.input_dim):<25} {str(operator_info.output_dim):<25} {params:<13} {speed:<15} { '':<15}"
             lines.append(row)
         
         return "\n".join(lines)
@@ -359,21 +372,11 @@ class OpsInfoProvider:
 
         # If all the checks passed, the instances are considered equivalent
         return True
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    
+    def __contains__(self, operator: Union[str, nn.Module]):
+        if isinstance(operator, str):
+            return operator in self.operators_info
+        elif isinstance(operator, nn.Module):
+            return any(op_info.module is operator for op_info in self.operators_info.values())
+        else:
+            raise TypeError(f"Operator must be a str or a Module (got {type(operator).__name__})")

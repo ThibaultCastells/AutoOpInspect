@@ -96,8 +96,8 @@ print(ops_info_provider)
 result:
 
 ```
-Layer (type)                    Input Shape               Output Shape              Param #       Inference (ms)  Other
-=======================================================================================================================================================
+Layer (type)                    Input Shape               Output Shape              Param #       Inference (ms)      Other
+================================================================================================================================
 target_module (VGG)             [[1, 3, 224, 224]]        [[1, 1000]]               132.86M       43.66851
 ├─ features (Sequential)        [[1, 3, 224, 224]]        [[1, 512, 7, 7]]          9.22M         32.90186
 │ ├─ features.0 (Conv2d)        [[1, 3, 224, 224]]        [[1, 64, 224, 224]]       1,792         1.93931
@@ -132,7 +132,7 @@ target_module (VGG)             [[1, 3, 224, 224]]        [[1, 1000]]           
 │ ├─ classifier.6 (Linear)      [[1, 4096]]               [[1, 1000]]               4.10M         0.18358
 ```
 
-Remark: for now, Module Details is empty. More info will be added soon.
+Remark: for now, Other is empty. More info will be added in the future.
 
 ## Contributing
 
