@@ -97,40 +97,38 @@ result:
 ```
 Layer (type)                    Input Shape               Output Shape              Param #       Inference (ms)      Other
 ================================================================================================================================
-target_module (VGG)            [[1, 3, 224, 224]]        [[1, 1000]]               132.86M       9.76976
-├─ features (Sequential)       [[1, 3, 224, 224]]        [[1, 512, 7, 7]]          9.22M         5.22328
-│ ├─ features.0 (Conv2d)       [[1, 3, 224, 224]]        [[1, 64, 224, 224]]       1,792         0.05798         (3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-│ ├─ features.1 (ReLU)         [[1, 64, 224, 224]]       [[1, 64, 224, 224]]       0             0.02664         (inplace=True)
-│ ├─ features.2 (MaxPool2d)    [[1, 64, 224, 224]]       [[1, 64, 112, 112]]       0             0.03027         (kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
-│ ├─ features.3 (Sequential)   [[1, 64, 112, 112]]       [[1, 128, 112, 112]]      73,856        0.06859
-│ │ ├─ features.3.0 (Conv2d)   [[1, 64, 112, 112]]       [[1, 128, 112, 112]]      73,856        0.04601         (64, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-│ │ ├─ features.3.1 (ReLU)     [[1, 128, 112, 112]]      [[1, 128, 112, 112]]      0             0.02824         (inplace=True)
-│ ├─ features.4 (ReLU)         [[1, 128, 112, 112]]      [[1, 128, 112, 112]]      0             0.02566         (inplace=True)
-│ ├─ features.5 (MaxPool2d)    [[1, 128, 112, 112]]      [[1, 128, 56, 56]]        0             0.03111         (kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
-│ ├─ features.6 (Conv2d)       [[1, 128, 56, 56]]        [[1, 256, 56, 56]]        295,168       0.04055         (128, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-│ ├─ features.7 (ReLU)         [[1, 256, 56, 56]]        [[1, 256, 56, 56]]        0             0.02655         (inplace=True)
-│ ├─ features.8 (Conv2d)       [[1, 256, 56, 56]]        [[1, 256, 56, 56]]        590,080       0.03971         (256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-│ ├─ features.9 (ReLU)         [[1, 256, 56, 56]]        [[1, 256, 56, 56]]        0             0.03472         (inplace=True)
-│ ├─ features.10 (MaxPool2d)   [[1, 256, 56, 56]]        [[1, 256, 28, 28]]        0             0.03484         (kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
-│ ├─ features.11 (Conv2d)      [[1, 256, 28, 28]]        [[1, 512, 28, 28]]        1.18M         0.04522         (256, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-│ ├─ features.12 (ReLU)        [[1, 512, 28, 28]]        [[1, 512, 28, 28]]        0             0.03280         (inplace=True)
-│ ├─ features.13 (Conv2d)      [[1, 512, 28, 28]]        [[1, 512, 28, 28]]        2.36M         0.04639         (512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-│ ├─ features.14 (ReLU)        [[1, 512, 28, 28]]        [[1, 512, 28, 28]]        0             0.03984         (inplace=True)
-│ ├─ features.15 (MaxPool2d)   [[1, 512, 28, 28]]        [[1, 512, 14, 14]]        0             0.04070         (kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
-│ ├─ features.16 (Conv2d)      [[1, 512, 14, 14]]        [[1, 512, 14, 14]]        2.36M         0.05222         (512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-│ ├─ features.17 (ReLU)        [[1, 512, 14, 14]]        [[1, 512, 14, 14]]        0             0.04114         (inplace=True)
-│ ├─ features.18 (Conv2d)      [[1, 512, 14, 14]]        [[1, 512, 14, 14]]        2.36M         0.06072         (512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-│ ├─ features.19 (ReLU)        [[1, 512, 14, 14]]        [[1, 512, 14, 14]]        0             0.04517         (inplace=True)
-│ ├─ features.20 (MaxPool2d)   [[1, 512, 14, 14]]        [[1, 512, 7, 7]]          0             0.04877         (kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
-├─ avgpool (AdaptiveAvgPool2d) [[1, 512, 7, 7]]          [[1, 512, 7, 7]]          0             0.04554         (output_size=(7, 7))
-├─ classifier (Sequential)     [[1, 25088]]              [[1, 1000]]               123.64M       0.19959
-│ ├─ classifier.0 (Linear)     [[1, 25088]]              [[1, 4096]]               102.76M       0.03174         (in_features=25088, out_features=4096, bias=True)
-│ ├─ classifier.1 (ReLU)       [[1, 4096]]               [[1, 4096]]               0             0.02045         (inplace=True)
+target_module (VGG)            [[1, 3, 224, 224]]        [[1, 1000]]               132.86M       45.65834                 
+├─ features (Sequential)       [[1, 3, 224, 224]]        [[1, 512, 7, 7]]          9.22M         33.99795                 
+│ ├─ features.0 (Conv2d)       [[1, 3, 224, 224]]        [[1, 64, 224, 224]]       1,792         1.69590         (3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+│ ├─ features.1 (ReLU)         [[1, 64, 224, 224]]       [[1, 64, 224, 224]]       0             0.12630         (inplace=True)
+│ ├─ features.2 (MaxPool2d)    [[1, 64, 224, 224]]       [[1, 64, 112, 112]]       0             1.50131         (kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+│ ├─ features.3 (Conv2d)       [[1, 64, 112, 112]]       [[1, 128, 112, 112]]      73,856        4.50531         (64, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+│ ├─ features.4 (ReLU)         [[1, 128, 112, 112]]      [[1, 128, 112, 112]]      0             0.08341         (inplace=True)
+│ ├─ features.5 (MaxPool2d)    [[1, 128, 112, 112]]      [[1, 128, 56, 56]]        0             0.77252         (kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+│ ├─ features.6 (Conv2d)       [[1, 128, 56, 56]]        [[1, 256, 56, 56]]        295,168       2.98192         (128, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+│ ├─ features.7 (ReLU)         [[1, 256, 56, 56]]        [[1, 256, 56, 56]]        0             0.05805         (inplace=True)
+│ ├─ features.8 (Conv2d)       [[1, 256, 56, 56]]        [[1, 256, 56, 56]]        590,080       5.55548         (256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+│ ├─ features.9 (ReLU)         [[1, 256, 56, 56]]        [[1, 256, 56, 56]]        0             0.05683         (inplace=True)
+│ ├─ features.10 (MaxPool2d)   [[1, 256, 56, 56]]        [[1, 256, 28, 28]]        0             0.42715         (kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+│ ├─ features.11 (Conv2d)      [[1, 256, 28, 28]]        [[1, 512, 28, 28]]        1.18M         2.52301         (256, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+│ ├─ features.12 (ReLU)        [[1, 512, 28, 28]]        [[1, 512, 28, 28]]        0             0.04940         (inplace=True)
+│ ├─ features.13 (Conv2d)      [[1, 512, 28, 28]]        [[1, 512, 28, 28]]        2.36M         5.03365         (512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+│ ├─ features.14 (ReLU)        [[1, 512, 28, 28]]        [[1, 512, 28, 28]]        0             0.05053         (inplace=True)
+│ ├─ features.15 (MaxPool2d)   [[1, 512, 28, 28]]        [[1, 512, 14, 14]]        0             0.26663         (kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+│ ├─ features.16 (Conv2d)      [[1, 512, 14, 14]]        [[1, 512, 14, 14]]        2.36M         1.48468         (512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+│ ├─ features.17 (ReLU)        [[1, 512, 14, 14]]        [[1, 512, 14, 14]]        0             0.02102         (inplace=True)
+│ ├─ features.18 (Conv2d)      [[1, 512, 14, 14]]        [[1, 512, 14, 14]]        2.36M         1.54018         (512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+│ ├─ features.19 (ReLU)        [[1, 512, 14, 14]]        [[1, 512, 14, 14]]        0             0.01807         (inplace=True)
+│ ├─ features.20 (MaxPool2d)   [[1, 512, 14, 14]]        [[1, 512, 7, 7]]          0             0.11825         (kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+├─ avgpool (AdaptiveAvgPool2d) [[1, 512, 7, 7]]          [[1, 512, 7, 7]]          0             0.05351         (output_size=(7, 7))
+├─ classifier (Sequential)     [[1, 25088]]              [[1, 1000]]               123.64M       10.39421                 
+│ ├─ classifier.0 (Linear)     [[1, 25088]]              [[1, 4096]]               102.76M       8.57219         (in_features=25088, out_features=4096, bias=True)
+│ ├─ classifier.1 (ReLU)       [[1, 4096]]               [[1, 4096]]               0             0.00115         (inplace=True)
 │ ├─ classifier.2 (Dropout)    [[1, 4096]]               [[1, 4096]]               0             0.00173         (p=0.5, inplace=False)
-│ ├─ classifier.3 (Linear)     [[1, 4096]]               [[1, 4096]]               16.78M        0.03215         (in_features=4096, out_features=4096, bias=True)
-│ ├─ classifier.4 (ReLU)       [[1, 4096]]               [[1, 4096]]               0             0.02042         (inplace=True)
-│ ├─ classifier.5 (Dropout)    [[1, 4096]]               [[1, 4096]]               0             0.00164         (p=0.5, inplace=False)
-│ ├─ classifier.6 (Linear)     [[1, 4096]]               [[1, 1000]]               4.10M         0.03169         (in_features=4096, out_features=1000, bias=True)
+│ ├─ classifier.3 (Linear)     [[1, 4096]]               [[1, 4096]]               16.78M        1.26286         (in_features=4096, out_features=4096, bias=True)
+│ ├─ classifier.4 (ReLU)       [[1, 4096]]               [[1, 4096]]               0             0.00115         (inplace=True)
+│ ├─ classifier.5 (Dropout)    [[1, 4096]]               [[1, 4096]]               0             0.00162         (p=0.5, inplace=False)
+│ ├─ classifier.6 (Linear)     [[1, 4096]]               [[1, 1000]]               4.10M         0.14087         (in_features=4096, out_features=1000, bias=True)
 ```
 
 From v1.0, you can also visualize the model with a barplot, direcly in you terminal. This is a great way to visualize large models.
