@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 import time
 from tqdm import tqdm
+from .module_print import get_other_info
+from .utils import ascii_barplot_horizontal
 
 class OpInfo:
     """
@@ -41,6 +43,7 @@ class OpInfo:
         self.output_dim: Optional[List[Tuple]] = []
         self.speed = None 
         self.error = None # allows to collect error when forwarding
+        self.hash = hash(str(module).encode())
 
     def __getitem__(self, key: str) -> dict:
         attributes = {
@@ -51,7 +54,8 @@ class OpInfo:
             'input_val': self.input_val,
             'output_dim': self.output_dim,
             'output_val': self.output_val,
-            'speed': self.speed
+            'speed': self.speed,
+            'hash': self.hash,
         }
         return attributes[key]
     
@@ -59,13 +63,7 @@ class OpsInfoProvider:
     """
     A wrapper for a list of operators.
     Allows to collect data for all operators in one feed-forward.
-    Args:
-        - model: the model to collect data from
-        - operators_info: a list of OperatorInfo objects
-        - device: the device of the model
-        - input: a list of tuple for the sizes of the input tensor (one tuple per input), for the feed-forwarding
     """
-
 
     def __init__(self, model: nn.Module, model_input: list, target: Optional[Union[str, nn.Module]] = None, inspect_children=True):
         """
@@ -73,10 +71,13 @@ class OpsInfoProvider:
         Args:
             model: The model to analyze.
             model_input: list of the model inputs
-            target: if None, all modules in the model will be inspected. If a module is 
-
+            target: if None, all modules in the model will be inspected.
+            inspect_children: weither the children of the target are considered or not
         """
+        self.model_hash = hash(str(model).encode())
         self.model = model
+        self.model_input = model_input
+        self.inspect_children = inspect_children
         # extract the target nn.Module form the model
         if target is None:
             self.target_module = model
@@ -88,7 +89,7 @@ class OpsInfoProvider:
         else:
             self.target_module = target
         self._collect_info(model_input, inspect_children)  # Automatically collect information on initialization
-
+        self.generations = self._calculate_generations()
 
     def _collect_info(self, model_input: list, inspect_children=True, module_filter_func=None):
         """
@@ -163,6 +164,7 @@ class OpsInfoProvider:
         return operator_info
     
     def benchmark_speed(self, operator: Optional[Union[int, str, nn.Module]]=None, device=None, iterations: int=10):
+        self.refresh()
         if device is None:
             device = next(self.target_module.parameters()).device
         else:
@@ -205,20 +207,15 @@ class OpsInfoProvider:
 
                 total_time = 0.0
 
-                if device.type == 'cuda':
-                    for _ in range(iterations):
+                for _ in range(iterations):
+                    if device.type == 'cuda':
                         torch.cuda.synchronize()
-                        start_time = time.perf_counter()
-                        module(*input_data)
+                    start_time = time.perf_counter()
+                    module(*input_data)
+                    if device.type == 'cuda':
                         torch.cuda.synchronize()
-                        end_time = time.perf_counter()
-                        total_time += end_time - start_time
-                else:
-                    for _ in range(iterations):
-                        start_time = time.perf_counter()
-                        module(*input_data)
-                        end_time = time.perf_counter()
-                        total_time += end_time - start_time
+                    end_time = time.perf_counter()
+                    total_time += end_time - start_time
 
                 total_time = total_time / iterations
 
@@ -283,8 +280,42 @@ class OpsInfoProvider:
         else:
             raise ValueError("Invalid mode. It should be one of 'input', 'output', or 'both'.")
 
+    def refresh(self):
+        """
+        Refresh the model representation if the model architecture has been modified.
+        """
+        if hash(str(self.target_module).encode()) == self.model_hash:
+            # efficient check to see if a refresh is needed
+            return
+        self.model_hash = hash(str(self.target_module).encode())
+
+        update_required = False
+        save_time = {}
+        for name, module in self.target_module.named_modules():
+            update_curr = False
+            if name == '':
+                continue
+            elif name not in self.operators_info:
+                # print(f'New operator: {name}')
+                update_required = True
+                update_curr = True
+            else:
+                current_hash = hash(str(module).encode())
+                if self.operators_info[name]['hash'] != current_hash:
+                    # print(f"Operator {name} has been updated")
+                    update_required = True
+                    update_curr = True
+            if not update_curr:
+                save_time[name] = self.operators_info[name]['speed']
+        if update_required:
+            self._collect_info(self.model_input, self.inspect_children)
+            self.generations = self._calculate_generations()
+            for name, speed in save_time.items():
+                self.operators_info[name].speed = speed
+
 
     def __str__(self):
+        self.refresh()
         # Initially, find the maximum length for the Layer (type) column
         max_layer_type_length = max(
             name.count('.')*2 + len(name) + len(operator_info.module.__class__.__name__)
@@ -319,7 +350,9 @@ class OpsInfoProvider:
                 formatted_params = f"{params / 1_000_000:.2f}M"
             params = formatted_params
 
-            row = f"{indent + name + ' (' + module_class_name + ')':<{max_layer_type_length}} {str(operator_info.input_dim):<25} {str(operator_info.output_dim):<25} {params:<13} {speed:<15} { '':<15}"
+            other_info = get_other_info(operator_info.module)
+
+            row = f"{indent + name + ' (' + module_class_name + ')':<{max_layer_type_length}} {str(operator_info.input_dim):<25} {str(operator_info.output_dim):<25} {params:<13} {speed:<15} {other_info:<15}"
             lines.append(row)
         
         return "\n".join(lines)
@@ -380,3 +413,72 @@ class OpsInfoProvider:
             return any(op_info.module is operator for op_info in self.operators_info.values())
         else:
             raise TypeError(f"Operator must be a str or a Module (got {type(operator).__name__})")
+
+
+    def _calculate_generations(self):
+        """
+        Calculates the generation of each operator in the model.
+        """
+        generations = {name: 0 for name in self.operators_info}
+        for name in self.operators_info:
+            parts = name.split('.')
+            for depth in range(1, len(parts)):
+                parent = '.'.join(parts[:depth])
+                generations[parent] = max(generations[parent], len(parts) - depth)
+        return generations
+
+    def barplot_speed(self, mode: str = 'sum', generation: int = 0):
+        """
+        Creates a bar plot of the speed of operators at a specific generation.
+
+        Args:
+            mode (str): 'mean' or 'sum' to plot average or total speed.
+            generation (int): The generation of the operators. By default, 0 (i.e. only operators with no children are considered).
+        """
+        self.refresh()
+        module_speeds = {}
+        module_counts = {}
+
+        for name, op_info in self.operators_info.items():
+            if self.generations[name] <= generation and name!='target_module':
+                module_type = type(op_info.module).__name__
+                if op_info.speed is not None:
+                    if module_type not in module_speeds:
+                        module_speeds[module_type] = 0
+                        module_counts[module_type] = 0
+                    module_speeds[module_type] += op_info.speed
+                    module_counts[module_type] += 1
+
+        speeds = []
+        labels = []
+        for module_type, total_speed in module_speeds.items():
+            if mode == 'mean':
+                speed = total_speed / module_counts[module_type]
+            elif mode == 'sum':
+                speed = total_speed
+            else:
+                raise ValueError("Mode must be 'mean' or 'sum'")
+            speeds.append(speed)
+            labels.append(module_type)
+
+        ascii_barplot_horizontal(speeds, labels, title=f'Operator Speed in ms ({mode})')
+
+    def barplot_quantity(self, generation: int = 0):
+        """
+        Creates a bar plot of the quantity of operators at a specific generation.
+
+        Args:
+            generation (int): The generation of the operators. By default, 0 (i.e. only operators with no children are considered).
+        """
+        self.refresh()
+        module_counts = {}
+
+        for name, op_info in self.operators_info.items():
+            if self.generations[name] <= generation and name!='target_module':
+                module_type = type(op_info.module).__name__
+                module_counts[module_type] = module_counts.get(module_type, 0) + 1
+
+        quantities = list(module_counts.values())
+        labels = list(module_counts.keys())
+
+        ascii_barplot_horizontal(quantities, labels, title=f'Operator Quantity')

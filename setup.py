@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='auto_op_inspect',
-    version='0.2.1',
+    version='1.0',
     author='Thibault Castells',
     description='AutoOpInspect is a Python tool designed to facilitate the inspection and profiling of operators within PyTorch models, aiming to assist machine learning developers, researchers, and enthusiasts in debugging, optimizing, and understanding PyTorch models more efficiently and effectively.',
     url='https://github.com/ThibaultCastells/AutoOpInspect', 
@@ -18,6 +18,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         'torch',
+        'tqdm'
     ],
     python_requires='>=3.6',
 )
